@@ -1,5 +1,5 @@
 diff --git a/kombu/transport/redis.py b/kombu/transport/redis.py
-index abbe9272..e39e73d1 100644
+index abbe9272..fe5f815e 100644
 --- a/kombu/transport/redis.py
 +++ b/kombu/transport/redis.py
 @@ -490,6 +490,7 @@ class MultiChannelPoller:
@@ -46,10 +46,10 @@ index abbe9272..e39e73d1 100644
 +                current_connection_sock = connection._sock
 +                nonlocal last_seen_connection_sock
 +                if current_connection_sock != last_seen_connection_sock:
-+                    warning(f"Calling on_disconnect {id(connection)} {id(current_connection_sock)}.")
++                    logger.warning(f"Calling on_disconnect {id(connection)} {id(current_connection_sock)}.")
 +                    _on_disconnect(connection)
 +                else:
-+                    warning(f"Skipping duplicate on_disconnect for connection {id(connection)} {id(current_connection_sock)}.")
++                    logger.warning(f"Skipping duplicate on_disconnect for connection {id(connection)} {id(current_connection_sock)}.")
 +            return debounced_on_disconnect
 +
 +        cycle._on_connection_disconnect = _make_on_disconnect()
