@@ -1,0 +1,25 @@
+diff --git a/celery/apps/worker.py b/celery/apps/worker.py
+index dcc04dac2..bb92f88e6 100644
+--- a/celery/apps/worker.py
++++ b/celery/apps/worker.py
+@@ -285,14 +285,18 @@ def _shutdown_handler(worker, sig='TERM', how='Warm',
+             from celery.worker import state
+             if current_process()._name == 'MainProcess':
+                 if callback:
++                    safe_say(f'running callback')
+                     callback(worker)
+                 safe_say(f'worker: {how} shutdown (MainProcess)')
+                 signals.worker_shutting_down.send(
+                     sender=worker.hostname, sig=sig, how=how,
+                     exitcode=exitcode,
+                 )
+-            setattr(state, {'Warm': 'should_stop',
+-                            'Cold': 'should_terminate'}[how], exitcode)
++                safe_say(f'sent shutdown signal')
++            attr_to_set = {'Warm': 'should_stop', 'Cold': 'should_terminate'}[how]
++            setattr(state, attr_to_set, exitcode)
++            safe_say(f'set attr {attr_to_set} on obj {state} with code {exitcode}')
++        safe_say(f'exited in_sighandler()')
+     _handle_request.__name__ = str(f'worker_{how}')
+     platforms.signals[sig] = _handle_request
+ 
