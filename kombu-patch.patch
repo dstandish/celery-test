@@ -1,0 +1,60 @@
+diff --git a/kombu/transport/redis.py b/kombu/transport/redis.py
+index abbe9272..e39e73d1 100644
+--- a/kombu/transport/redis.py
++++ b/kombu/transport/redis.py
+@@ -490,6 +490,7 @@ class MultiChannelPoller:
+         self._channels.discard(channel)
+ 
+     def _on_connection_disconnect(self, connection):
++        logger.warning("orig _on_connection_disconnect called")
+         try:
+             self.poller.unregister(connection._sock)
+         except (AttributeError, TypeError):
+@@ -1312,17 +1313,46 @@ class Transport(virtual.Transport):
+         on_readable = self.on_readable
+ 
+         def _on_disconnect(connection):
++            logger.warning("_on_disconnect is called")
+             if connection._sock:
++                logger.warning(f"connection._sock removed: {connection._sock}")
+                 loop.remove(connection._sock)
+ 
+             # must have started polling or this will break reconnection
+             if cycle.fds:
++                logger.warning(f"yes cycle.fds")
+                 # stop polling in the event loop
+                 try:
+                     loop.on_tick.remove(on_poll_start)
++                    logger.warning(f"on_poll_start removed")
+                 except KeyError:
++                    logger.warning(f"key error on on_poll_start removal")
+                     pass
+-        cycle._on_connection_disconnect = _on_disconnect
++
++        def _make_on_disconnect():
++            # redis also calls the disconnecton callback from __del__
++            # which is sometimes called implicitly after a new connection
++            # has been established. This causes the on_disconnect callback
++            # to then erroneously disconnect the new connection. We
++            # workaround this by debouncing the disconnect callback so that
++            # only the first disconnection request per socket is processed
++            # and subsequent requests are ignored.
++            # works around
++            last_seen_connection_sock = None
++            nonlocal _on_disconnect
++            def debounced_on_disconnect(connection):
++                current_connection_sock = connection._sock
++                nonlocal last_seen_connection_sock
++                if current_connection_sock != last_seen_connection_sock:
++                    warning(f"Calling on_disconnect {id(connection)} {id(current_connection_sock)}.")
++                    _on_disconnect(connection)
++                else:
++                    warning(f"Skipping duplicate on_disconnect for connection {id(connection)} {id(current_connection_sock)}.")
++            return debounced_on_disconnect
++
++        cycle._on_connection_disconnect = _make_on_disconnect()
++        #connection._on_connection_disconnect = _on_disconnect
++
+ 
+         def on_poll_start():
+             cycle_poll_start()
